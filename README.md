@@ -46,6 +46,18 @@ uv run python -m causalbench.eval.summarize \
   --out-table results/runs/dev/results_table.md
 ```
 
+Run a simple non-LLM heuristic baseline on the same dataset:
+
+```bash
+uv run python -m causalbench.eval.heuristic_baseline \
+  results/runs/dev/results.jsonl \
+  --out-jsonl results/runs/dev_heuristic/results.jsonl
+
+uv run python -m causalbench.eval.summarize \
+  results/runs/dev_heuristic/results.jsonl \
+  --out-table results/runs/dev_heuristic/results_table.md
+```
+
 ## Example Results Table
 
 Example format (values shown are from `results/runs/qwen05b/results_table.md` in this repo):
@@ -62,6 +74,11 @@ To reproduce this format, run the two commands above and open `results/runs/dev/
 - `gap < tol` (borderline)
 - `tol <= gap <= 0.08` (medium)
 - `gap > 0.08` (easy)
+
+And reliability buckets by `n_in_band` (conditioning support size):
+- `< 100`
+- `100-199`
+- `>= 200`
 
 ## Roadmap
 

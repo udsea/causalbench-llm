@@ -78,7 +78,7 @@ def _build_prompt(
     x_value: float,
     x_band: float,
     label_order: tuple[str, str, str],
-) -> str:
+) -> tuple[str, dict[str, float | int]]:
     x = obs_data["X"]
     y = obs_data["Y"]
     var_x = float(np.var(x))
@@ -104,6 +104,7 @@ def _build_prompt(
     else:
         ci_low = float("nan")
         ci_high = float("nan")
+    ci_width = float(ci_high - ci_low) if not np.isnan(ci_low) and not np.isnan(ci_high) else float("nan")
     corr_xy = _safe_corr(x, y)
 
     edges = ", ".join(f"{src}->{dst}" for src, dst in SCM_EDGES[scm_kind])
@@ -120,7 +121,7 @@ def _build_prompt(
 
     allowed_json = " or ".join(f'{{"label":"{label}"}}' for label in label_order)
 
-    return (
+    prompt = (
         f"Task: intervention_compare_{scm_kind}\n"
         f"Causal DAG edges: {edges}\n"
         f"Unobserved variables: {unobserved_text}\n"
@@ -155,6 +156,22 @@ def _build_prompt(
         "Heuristic: if A_hat is very close to baseline P(Y > 0) and evidence is weak, prefer approx_equal.\n"
         f"Return ONLY JSON: {allowed_json}.\n"
     )
+    prompt_evidence: dict[str, float | int] = {
+        "prompt_a_hat": float(obs_prob_est),
+        "prompt_a_hat_ci_low": ci_low,
+        "prompt_a_hat_ci_high": ci_high,
+        "prompt_ci_width": ci_width,
+        "prompt_delta_a_baseline": float(delta_a_baseline),
+        "prompt_n_in_band": n_in_band,
+        "prompt_baseline_prob": baseline_prob,
+        "prompt_mean_x": mean_x,
+        "prompt_mean_y": mean_y,
+        "prompt_std_x": std_x,
+        "prompt_std_y": std_y,
+        "prompt_beta_hat": beta_hat,
+        "prompt_corr_xy": corr_xy,
+    }
+    return prompt, prompt_evidence
 
 
 def _assign_label_with_margins(
@@ -289,7 +306,7 @@ def build_intervention_compare_instances(
         )
         perm = np.random.default_rng(seed + 400_000 + attempt).permutation(LABELS)
         label_order = (str(perm[0]), str(perm[1]), str(perm[2]))
-        prompt = _build_prompt(
+        prompt, prompt_evidence = _build_prompt(
             scm_kind=scm_kind,
             obs_data=prompt_obs_data,
             n_obs=n_prompt_obs_samples,
@@ -314,6 +331,7 @@ def build_intervention_compare_instances(
                     "dir_margin": dir_margin,
                     "band": x_band,
                     "n_prompt_obs": n_prompt_obs_samples,
+                    **prompt_evidence,
                 },
             )
         )

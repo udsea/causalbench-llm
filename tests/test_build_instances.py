@@ -89,6 +89,8 @@ def test_prompt_lists_all_allowed_labels():
     assert '{"label":"obs_gt_do"}' in inst.prompt
     assert '{"label":"do_gt_obs"}' in inst.prompt
     assert '{"label":"approx_equal"}' in inst.prompt
+    assert "prompt_n_in_band" in inst.gold
+    assert "prompt_delta_a_baseline" in inst.gold
 
 
 def test_stratified_motif_label_balancing():

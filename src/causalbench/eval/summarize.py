@@ -41,6 +41,16 @@ def _gap_bucket(gap: float, eq_margin: float) -> str:
     return "easy (gap >= 0.08)"
 
 
+def _n_in_band_bucket(n_in_band: int | None) -> str:
+    if n_in_band is None:
+        return "missing"
+    if n_in_band < 100:
+        return "< 100"
+    if n_in_band < 200:
+        return "100-199"
+    return ">= 200"
+
+
 @app.command()
 def main(
     results_jsonl: str,
@@ -65,6 +75,12 @@ def main(
         "borderline (gap < tol)": {"n": 0, "correct": 0},
         "medium (tol <= gap < 0.08)": {"n": 0, "correct": 0},
         "easy (gap >= 0.08)": {"n": 0, "correct": 0},
+    }
+    by_n_in_band_bucket: dict[str, dict[str, int]] = {
+        "< 100": {"n": 0, "correct": 0},
+        "100-199": {"n": 0, "correct": 0},
+        ">= 200": {"n": 0, "correct": 0},
+        "missing": {"n": 0, "correct": 0},
     }
     by_scm_kind: dict[str, dict[str, int]] = {}
     by_pred: dict[str, int] = {lbl: 0 for lbl in LABELS}
@@ -99,6 +115,11 @@ def main(
         bucket = _gap_bucket(gap, eq_margin)
         by_gap_bucket[bucket]["n"] += 1
         by_gap_bucket[bucket]["correct"] += score
+        n_in_band_raw = gold.get("prompt_n_in_band")
+        n_in_band = int(n_in_band_raw) if isinstance(n_in_band_raw, int | float) else None
+        n_bucket = _n_in_band_bucket(n_in_band)
+        by_n_in_band_bucket[n_bucket]["n"] += 1
+        by_n_in_band_bucket[n_bucket]["correct"] += score
 
         pred_label = _extract_pred_label(r)
         if pred_label is None:
@@ -150,6 +171,12 @@ def main(
     out.append("| difficulty bucket | n | acc |\n|---|---:|---:|\n")
     for bucket in ("borderline (gap < tol)", "medium (tol <= gap < 0.08)", "easy (gap >= 0.08)"):
         stats = by_gap_bucket[bucket]
+        out.append(f"| {bucket} | {stats['n']} | {_acc(stats):.3f} |\n")
+
+    out.append("\n## Breakdown by n_in_band reliability\n\n")
+    out.append("| n_in_band bucket | n | acc |\n|---|---:|---:|\n")
+    for bucket in ("< 100", "100-199", ">= 200", "missing"):
+        stats = by_n_in_band_bucket[bucket]
         out.append(f"| {bucket} | {stats['n']} | {_acc(stats):.3f} |\n")
 
     out.append("\n## Confusion matrix (gold x pred)\n\n")
