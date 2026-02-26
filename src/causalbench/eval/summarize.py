@@ -24,7 +24,7 @@ def main(
     acc = sum(r["score"] for r in rows) / total
 
     # breakdown by label (gold)
-    by_label = {}
+    by_label: dict[str, dict[str, int]] = {}
     for r in rows:
         lbl = r["gold"]["label"]
         by_label.setdefault(lbl, {"n": 0, "correct": 0})
@@ -32,7 +32,7 @@ def main(
         by_label[lbl]["correct"] += r["score"]
 
     out = []
-    out.append(f"# Results\n")
+    out.append("# Results\n")
     out.append(f"- Total instances: {total}\n")
     out.append(f"- Accuracy: {acc:.3f}\n\n")
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, Tuple
 
 @dataclass(frozen=True)
 class DAG:
@@ -53,7 +53,7 @@ class DAG:
                 edges.append((parent, child))
         return tuple(edges)
     
-    def topological_sort(self) -> Tuple[str]:
+    def topological_sort(self) -> Tuple[str, ...]:
         """ sort the dag topologically , also check for cycles"""
 
         sorted_nodes = []
@@ -64,7 +64,7 @@ class DAG:
             if node in visited:
                 return
             if node in visiting:
-                raise ValueError(f" cycle detected ")
+                raise ValueError(" cycle detected ")
             
             visiting.add(node)
             for child in self.children_of(node):
