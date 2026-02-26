@@ -49,5 +49,6 @@ def test_summarize_includes_macro_and_confusion(tmp_path):
     assert "- Macro accuracy: 0.667" in report
     assert "- Macro F1: 0.556" in report
     assert "## Breakdown by gap difficulty" in report
+    assert "## Breakdown by n_in_band reliability" in report
     assert "## Confusion matrix (gold x pred)" in report
     assert "| obs_gt_do | 1 | 0 | 0 |" in report
