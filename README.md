@@ -5,6 +5,8 @@
 ## Tasks Implemented
 
 - `intervention_compare_confounding`: `U -> X, U -> Y, X -> Y`
+- `intervention_compare_confounding_only`: `U -> X, U -> Y`
+- `intervention_compare_no_confounding`: `X -> Y`
 - `intervention_compare_mediation`: `X -> M -> Y`
 - `intervention_compare_collider`: `X -> Y, X -> Z, Y -> Z` (collider at `Z`)
 - `intervention_compare_instrumental_variable`: `Z -> X -> Y, U -> X, U -> Y`
@@ -20,20 +22,27 @@ By default, instance generation uses rejection sampling to target a balanced gol
 ## One-Command Run
 
 ```bash
-uv run python -m causalbench.eval.run_eval main \
+uv run python -m causalbench.eval.run_eval \
   --model-name "Qwen/Qwen2.5-0.5B-Instruct" \
   --device cpu \
-  --n-instances 30 \
+  --n-instances 240 \
   --seed 0 \
   --scm-kinds all \
+  --balance-labels \
+  --stratify-motif-label \
+  --n-prompt-obs-samples 2000 \
+  --x-band 0.25 \
+  --eq-margin 0.06 \
+  --dir-margin 0.06 \
+  --discard-ambiguous \
   --out-dir results/runs/dev
 ```
 
 Then build a markdown summary table:
 
 ```bash
-uv run python -m causalbench.eval.summarize main \
-  --results-jsonl results/runs/dev/results.jsonl \
+uv run python -m causalbench.eval.summarize \
+  results/runs/dev/results.jsonl \
   --out-table results/runs/dev/results_table.md
 ```
 
@@ -48,6 +57,11 @@ Example format (values shown are from `results/runs/qwen05b/results_table.md` in
 | approx_equal | 7 | 0.000 |
 
 To reproduce this format, run the two commands above and open `results/runs/dev/results_table.md`.
+
+`summarize` also reports difficulty buckets by `gap = |obs_prob - do_prob|`:
+- `gap < tol` (borderline)
+- `tol <= gap <= 0.08` (medium)
+- `gap > 0.08` (easy)
 
 ## Roadmap
 

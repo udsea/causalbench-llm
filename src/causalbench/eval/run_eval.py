@@ -20,6 +20,12 @@ def main(
     seed: int = 0,
     scm_kinds: str = "all",
     balance_labels: bool = True,
+    n_prompt_obs_samples: int = 2000,
+    x_band: float = 0.25,
+    eq_margin: float = 0.06,
+    dir_margin: float = 0.06,
+    discard_ambiguous: bool = True,
+    stratify_motif_label: bool = False,
 ):
     out_path = Path(out_dir)
     out_path.mkdir(parents=True, exist_ok=True)
@@ -29,6 +35,12 @@ def main(
         seed=seed,
         scm_kinds=parse_scm_kinds(scm_kinds),
         balance_labels=balance_labels,
+        n_prompt_obs_samples=n_prompt_obs_samples,
+        x_band=x_band,
+        eq_margin=eq_margin,
+        dir_margin=dir_margin,
+        discard_ambiguous=discard_ambiguous,
+        stratify_motif_label=stratify_motif_label,
     )
     runner = HFRunner(model_name=model_name, device_preference=device)
 
@@ -43,6 +55,7 @@ def main(
                 "instance_id": inst.instance_id,
                 "task": inst.task,
                 "scm_kind": inst.scm_kind,
+                "prompt": inst.prompt,
                 "gold": inst.gold,
                 "raw_output": raw,
                 "parse_ok": ok,

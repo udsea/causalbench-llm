@@ -38,7 +38,13 @@ class HFRunner:
         # Chat-template path (Qwen Instruct)
         if getattr(self.tokenizer, "chat_template", None):
             messages = [
-                {"role": "system", "content": 'Return ONLY valid JSON like {"label":"obs_gt_do"}.'},
+                {
+                    "role": "system",
+                    "content": (
+                        'Return ONLY valid JSON with exactly one key: "label". '
+                        'Allowed values: "obs_gt_do", "do_gt_obs", "approx_equal".'
+                    ),
+                },
                 {"role": "user", "content": prompt},
             ]
             enc = self.tokenizer.apply_chat_template(
