@@ -7,6 +7,28 @@ import numpy as np
 
 from causalbench.scm.dag import DAG
 
+SCM_EDGES: dict[str, tuple[tuple[str, str], ...]] = {
+    "confounding": (("U", "X"), ("U", "Y"), ("X", "Y")),
+    "confounding_only": (("U", "X"), ("U", "Y")),
+    "no_confounding": (("X", "Y"),),
+    "mediation": (("X", "M"), ("M", "Y")),
+    "collider": (("X", "Y"), ("X", "Z"), ("Y", "Z")),
+    "instrumental_variable": (("Z", "X"), ("X", "Y"), ("U", "X"), ("U", "Y")),
+    "anti_causal": (("Y", "X"), ("U", "X"), ("U", "Y")),
+    "backdoor_adjustable": (("W", "X"), ("W", "Y"), ("X", "Y")),
+}
+
+SCM_UNOBSERVED: dict[str, tuple[str, ...]] = {
+    "confounding": ("U",),
+    "confounding_only": ("U",),
+    "no_confounding": (),
+    "mediation": (),
+    "collider": (),
+    "instrumental_variable": ("U",),
+    "anti_causal": ("U",),
+    "backdoor_adjustable": (),
+}
+
 
 @dataclass(frozen=True)
 class LinearGaussianSCM:
@@ -37,7 +59,7 @@ def make_confounding_scm(seed: int = 0) -> LinearGaussianSCM:
       U -> Y
       X -> Y
     """
-    return _build_scm(edges=[("U", "X"), ("U", "Y"), ("X", "Y")], seed=seed)
+    return _build_scm(edges=list(SCM_EDGES["confounding"]), seed=seed)
 
 
 def make_confounding_only_scm(seed: int = 0) -> LinearGaussianSCM:
@@ -46,7 +68,7 @@ def make_confounding_only_scm(seed: int = 0) -> LinearGaussianSCM:
       U -> X
       U -> Y
     """
-    return _build_scm(edges=[("U", "X"), ("U", "Y")], seed=seed)
+    return _build_scm(edges=list(SCM_EDGES["confounding_only"]), seed=seed)
 
 
 def make_no_confounding_scm(seed: int = 0) -> LinearGaussianSCM:
@@ -54,7 +76,7 @@ def make_no_confounding_scm(seed: int = 0) -> LinearGaussianSCM:
     No-confounding motif:
       X -> Y
     """
-    return _build_scm(edges=[("X", "Y")], seed=seed)
+    return _build_scm(edges=list(SCM_EDGES["no_confounding"]), seed=seed)
 
 
 def make_mediation_scm(seed: int = 0) -> LinearGaussianSCM:
@@ -62,7 +84,7 @@ def make_mediation_scm(seed: int = 0) -> LinearGaussianSCM:
     Mediation motif:
       X -> M -> Y
     """
-    return _build_scm(edges=[("X", "M"), ("M", "Y")], seed=seed)
+    return _build_scm(edges=list(SCM_EDGES["mediation"]), seed=seed)
 
 
 def make_collider_scm(seed: int = 0) -> LinearGaussianSCM:
@@ -71,7 +93,7 @@ def make_collider_scm(seed: int = 0) -> LinearGaussianSCM:
       X -> Z <- Y
       X -> Y
     """
-    return _build_scm(edges=[("X", "Y"), ("X", "Z"), ("Y", "Z")], seed=seed)
+    return _build_scm(edges=list(SCM_EDGES["collider"]), seed=seed)
 
 
 def make_instrumental_variable_scm(seed: int = 0) -> LinearGaussianSCM:
@@ -81,7 +103,7 @@ def make_instrumental_variable_scm(seed: int = 0) -> LinearGaussianSCM:
       U -> X
       U -> Y
     """
-    return _build_scm(edges=[("Z", "X"), ("X", "Y"), ("U", "X"), ("U", "Y")], seed=seed)
+    return _build_scm(edges=list(SCM_EDGES["instrumental_variable"]), seed=seed)
 
 
 def make_anti_causal_scm(seed: int = 0) -> LinearGaussianSCM:
@@ -91,7 +113,7 @@ def make_anti_causal_scm(seed: int = 0) -> LinearGaussianSCM:
       U -> X
       U -> Y
     """
-    return _build_scm(edges=[("Y", "X"), ("U", "X"), ("U", "Y")], seed=seed)
+    return _build_scm(edges=list(SCM_EDGES["anti_causal"]), seed=seed)
 
 
 def make_backdoor_adjustable_scm(seed: int = 0) -> LinearGaussianSCM:
@@ -101,7 +123,7 @@ def make_backdoor_adjustable_scm(seed: int = 0) -> LinearGaussianSCM:
       W -> Y
       X -> Y
     """
-    return _build_scm(edges=[("W", "X"), ("W", "Y"), ("X", "Y")], seed=seed)
+    return _build_scm(edges=list(SCM_EDGES["backdoor_adjustable"]), seed=seed)
 
 
 SCM_BUILDERS: dict[str, Callable[[int], LinearGaussianSCM]] = {

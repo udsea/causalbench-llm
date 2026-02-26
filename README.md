@@ -29,6 +29,11 @@ uv run python -m causalbench.eval.run_eval \
   --seed 0 \
   --scm-kinds all \
   --balance-labels \
+  --n-prompt-obs-samples 2000 \
+  --x-band 0.25 \
+  --eq-margin 0.06 \
+  --dir-margin 0.06 \
+  --discard-ambiguous \
   --out-dir results/runs/dev
 ```
 

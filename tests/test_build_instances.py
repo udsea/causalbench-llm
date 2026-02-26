@@ -46,3 +46,42 @@ def test_multimotif_instances_include_requested_kinds():
     )
     kinds = {inst.scm_kind for inst in instances}
     assert {"confounding", "mediation", "collider"}.issubset(kinds)
+
+
+def test_prompt_header_matches_motif_metadata():
+    instances = build_intervention_compare_instances(
+        n=4,
+        seed=1,
+        scm_kinds=("confounding", "no_confounding"),
+        balance_labels=False,
+        n_prompt_obs_samples=200,
+        n_obs_samples=400,
+        n_mc_samples=400,
+    )
+
+    by_kind = {inst.scm_kind: inst for inst in instances}
+    assert "confounding" in by_kind
+    assert "no_confounding" in by_kind
+
+    conf_prompt = by_kind["confounding"].prompt
+    assert "Causal DAG edges: U->X, U->Y, X->Y" in conf_prompt
+    assert "Unobserved variables: U" in conf_prompt
+
+    no_conf_prompt = by_kind["no_confounding"].prompt
+    assert "Causal DAG edges: X->Y" in no_conf_prompt
+    assert "Unobserved variables: none" in no_conf_prompt
+
+
+def test_prompt_lists_all_allowed_labels():
+    inst = build_intervention_compare_instances(
+        n=1,
+        seed=3,
+        scm_kinds=("confounding",),
+        balance_labels=False,
+        n_prompt_obs_samples=200,
+        n_obs_samples=400,
+        n_mc_samples=400,
+    )[0]
+    assert '{"label":"obs_gt_do"}' in inst.prompt
+    assert '{"label":"do_gt_obs"}' in inst.prompt
+    assert '{"label":"approx_equal"}' in inst.prompt

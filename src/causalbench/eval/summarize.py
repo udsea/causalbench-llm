@@ -67,6 +67,7 @@ def main(
         "easy (gap >= 0.08)": {"n": 0, "correct": 0},
     }
     by_scm_kind: dict[str, dict[str, int]] = {}
+    by_pred: dict[str, int] = {lbl: 0 for lbl in LABELS}
 
     confusion: dict[str, dict[str, int]] = {
         gold: {pred: 0 for pred in LABELS}
@@ -104,6 +105,7 @@ def main(
             invalid_pred_count += 1
             invalid_by_gold[gold_label] += 1
         else:
+            by_pred[pred_label] += 1
             confusion[gold_label][pred_label] += 1
 
     macro_accuracy = sum(_acc(by_label[lbl]) for lbl in LABELS) / len(LABELS)
@@ -124,6 +126,13 @@ def main(
     out.append(f"- Macro accuracy: {macro_accuracy:.3f}\n")
     out.append(f"- Macro F1: {macro_f1:.3f}\n")
     out.append(f"- Invalid/unknown predictions: {invalid_pred_count}\n\n")
+
+    out.append("## Predicted label distribution\n\n")
+    out.append("| predicted label | n | share |\n|---|---:|---:|\n")
+    for lbl in LABELS:
+        n_pred = by_pred[lbl]
+        out.append(f"| {lbl} | {n_pred} | {n_pred/total:.3f} |\n")
+    out.append("\n")
 
     out.append("## Breakdown by gold label\n\n")
     out.append("| label | n | acc | f1 |\n|---|---:|---:|---:|\n")
