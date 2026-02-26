@@ -5,7 +5,7 @@ import typer
 from tqdm import tqdm
 
 from causalbench.models.hf_runner import HFRunner
-from causalbench.tasks.build_instances import build_intervention_compare_instances
+from causalbench.tasks.build_instances import build_intervention_compare_instances, parse_scm_kinds
 from causalbench.tasks.scoring import extract_first_json_obj, score_label_strict
 
 app = typer.Typer()
@@ -16,13 +16,20 @@ def main(
     out_dir: str = "results/runs/dev",
     model_name: str = "distilgpt2",
     device: str = "cpu",
-    n_instances: int = 10,
+    n_instances: int = 30,
     seed: int = 0,
+    scm_kinds: str = "all",
+    balance_labels: bool = True,
 ):
     out_path = Path(out_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    instances = build_intervention_compare_instances(n=n_instances, seed=seed)
+    instances = build_intervention_compare_instances(
+        n=n_instances,
+        seed=seed,
+        scm_kinds=parse_scm_kinds(scm_kinds),
+        balance_labels=balance_labels,
+    )
     runner = HFRunner(model_name=model_name, device_preference=device)
 
     results_file = out_path / "results.jsonl"

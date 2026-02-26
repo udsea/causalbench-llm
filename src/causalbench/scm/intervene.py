@@ -58,6 +58,9 @@ def compare_obs_vs_do(
     n_mc: int = 20000,
     seed: int = 0,
     tol: float = 0.02,
+    obs_data: Dict[str, np.ndarray] | None = None,
+    x_band: float = 0.1,
+    fallback_band: float = 0.2,
 ) -> Dict[str, object]:
     """
     Produce both probabilities and a label:
@@ -74,15 +77,16 @@ def compare_obs_vs_do(
     x_node, x_value = next(iter(do.items()))
 
     # Observational samples
-    obs_data = sample_observational(scm, n=n_obs, seed=seed, interventions=None)
-    obs_prob = estimate_obs_prob(obs_data, x_node=x_node, x_value=float(x_value), band=0.1)
+    if obs_data is None:
+        obs_data = sample_observational(scm, n=n_obs, seed=seed, interventions=None)
+    obs_prob = estimate_obs_prob(obs_data, x_node=x_node, x_value=float(x_value), band=x_band)
 
     # Interventional samples
     do_prob = estimate_do_prob(scm, do=do, n_mc=n_mc, seed=seed + 1)
 
     # If obs_prob is NaN because band was empty, widen the band once (pragmatic v0 fix)
     if np.isnan(obs_prob):
-        obs_prob = estimate_obs_prob(obs_data, x_node=x_node, x_value=float(x_value), band=0.2)
+        obs_prob = estimate_obs_prob(obs_data, x_node=x_node, x_value=float(x_value), band=fallback_band)
 
     # Decide label
     if np.isnan(obs_prob):

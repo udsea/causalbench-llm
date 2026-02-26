@@ -1,7 +1,6 @@
 from __future__ import annotations
-from typing import Dict, Tuple, Optional
+from typing import Dict, Optional
 import numpy as np
-from dataclasses import dataclass
 
 from causalbench.scm.generate import LinearGaussianSCM
 
