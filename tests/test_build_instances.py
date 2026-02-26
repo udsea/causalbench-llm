@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from causalbench.scm.generate import ALL_SCM_KINDS, make_scm
-from causalbench.tasks.build_instances import build_intervention_compare_instances, parse_scm_kinds
+from causalbench.tasks.build_instances import (
+    LABELS,
+    build_intervention_compare_instances,
+    parse_scm_kinds,
+)
 
 
 def test_parse_scm_kinds_all_and_custom():
@@ -85,3 +89,26 @@ def test_prompt_lists_all_allowed_labels():
     assert '{"label":"obs_gt_do"}' in inst.prompt
     assert '{"label":"do_gt_obs"}' in inst.prompt
     assert '{"label":"approx_equal"}' in inst.prompt
+
+
+def test_stratified_motif_label_balancing():
+    instances = build_intervention_compare_instances(
+        n=12,
+        seed=0,
+        scm_kinds=("confounding", "confounding_only"),
+        balance_labels=True,
+        stratify_motif_label=True,
+        n_prompt_obs_samples=300,
+        n_obs_samples=800,
+        n_mc_samples=800,
+        max_attempt_multiplier=400,
+    )
+    counts: dict[tuple[str, str], int] = {}
+    for inst in instances:
+        key = (inst.scm_kind, str(inst.gold["label"]))
+        counts[key] = counts.get(key, 0) + 1
+
+    assert len(instances) == 12
+    for motif in ("confounding", "confounding_only"):
+        for label in LABELS:
+            assert counts[(motif, label)] == 2

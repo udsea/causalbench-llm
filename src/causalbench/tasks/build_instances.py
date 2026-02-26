@@ -46,6 +46,19 @@ def _target_label_counts(n: int) -> dict[str, int]:
     return counts
 
 
+def _target_motif_label_counts(
+    n: int,
+    kinds: Sequence[str],
+) -> dict[tuple[str, str], int]:
+    bucket_keys = [(kind, label) for kind in kinds for label in LABELS]
+    base = n // len(bucket_keys)
+    remainder = n % len(bucket_keys)
+    counts = {key: base for key in bucket_keys}
+    for i in range(remainder):
+        counts[bucket_keys[i]] += 1
+    return counts
+
+
 def _safe_corr(x: np.ndarray, y: np.ndarray) -> float:
     x_std = float(np.std(x))
     y_std = float(np.std(y))
@@ -81,6 +94,9 @@ def _build_prompt(
     n_in_band = int(in_band.sum())
 
     obs_prob_est = estimate_obs_prob(obs_data, x_value=x_value, band=x_band)
+    delta_a_baseline = (
+        float(obs_prob_est - baseline_prob) if not np.isnan(obs_prob_est) else float("nan")
+    )
     if n_in_band > 0 and not np.isnan(obs_prob_est):
         se = float(np.sqrt(obs_prob_est * (1.0 - obs_prob_est) / n_in_band))
         ci_low = float(max(0.0, obs_prob_est - 1.96 * se))
@@ -115,6 +131,7 @@ def _build_prompt(
         f"- Conditioning band: |X-{x_value:.1f}| <= {x_band:.1f}\n"
         f"- Estimated A = P(Y > 0 | X ~ {x_value:.1f}) using band |X-{x_value:.1f}|<={x_band:.1f}: {_fmt_stat(obs_prob_est)}\n"
         f"- Approx 95% CI for A_hat: [{_fmt_stat(ci_low)}, {_fmt_stat(ci_high)}]\n"
+        f"- delta(A_hat - baseline): {_fmt_stat(delta_a_baseline)}\n"
         f"- Count in band: {n_in_band}\n"
         f"- Baseline P(Y > 0): {_fmt_stat(baseline_prob)}\n"
         f"- mean(X): {_fmt_stat(mean_x)}\n"
@@ -127,6 +144,14 @@ def _build_prompt(
         "Now decide which is larger:\n"
         f"A = P(Y > 0 | X ~ {x_value:.1f})  (observational)\n"
         f"B = P(Y > 0 | do(X = {x_value:.1f})) (interventional)\n\n"
+        "Label mapping:\n"
+        "- if B > A, return do_gt_obs\n"
+        "- if A > B, return obs_gt_do\n"
+        "- if A and B are close, return approx_equal\n"
+        "Practical rubric for this benchmark:\n"
+        "- when delta(A_hat - baseline) <= -0.08 with a tight CI, B is often larger (lean do_gt_obs)\n"
+        "- when delta(A_hat - baseline) >= 0.08 with a tight CI, A is often larger (lean obs_gt_do)\n"
+        "- when delta is near 0 or CI is wide, lean approx_equal\n"
         "Heuristic: if A_hat is very close to baseline P(Y > 0) and evidence is weak, prefer approx_equal.\n"
         f"Return ONLY JSON: {allowed_json}.\n"
     )
@@ -162,6 +187,7 @@ def build_intervention_compare_instances(
     eq_margin: float = 0.06,
     dir_margin: float = 0.06,
     discard_ambiguous: bool = True,
+    stratify_motif_label: bool = False,
     do_value: float = 1.0,
     x_band: float = 0.25,
 ) -> list[Instance]:
@@ -176,14 +202,38 @@ def build_intervention_compare_instances(
     if unknown:
         raise ValueError(f"unknown scm kind(s): {', '.join(unknown)}")
 
+    if stratify_motif_label and len(kinds) == 0:
+        raise ValueError("stratify_motif_label requires at least one motif")
+
     target_counts = _target_label_counts(n)
     accepted_counts = {label: 0 for label in LABELS}
+    target_motif_label_counts = _target_motif_label_counts(n, kinds)
+    accepted_motif_label_counts = {
+        key: 0
+        for key in target_motif_label_counts
+    }
 
     instances: list[Instance] = []
     max_attempts = max(10, n * max_attempt_multiplier)
+    if stratify_motif_label:
+        max_attempts = max(max_attempts, n * max_attempt_multiplier * len(kinds))
     attempt = 0
     while len(instances) < n and attempt < max_attempts:
-        scm_kind = kinds[attempt % len(kinds)]
+        if stratify_motif_label:
+            candidate_kinds = [
+                kind
+                for kind in kinds
+                if any(
+                    accepted_motif_label_counts[(kind, label)]
+                    < target_motif_label_counts[(kind, label)]
+                    for label in LABELS
+                )
+            ]
+            if not candidate_kinds:
+                break
+            scm_kind = candidate_kinds[attempt % len(candidate_kinds)]
+        else:
+            scm_kind = kinds[attempt % len(kinds)]
         attempt_seed = seed + attempt
 
         scm = make_scm(kind=scm_kind, seed=attempt_seed)
@@ -219,7 +269,15 @@ def build_intervention_compare_instances(
             continue
         label = margin_label if margin_label is not None else str(out["label"])
 
-        if balance_labels and accepted_counts[label] >= target_counts[label]:
+        if balance_labels and not stratify_motif_label and accepted_counts[label] >= target_counts[label]:
+            attempt += 1
+            continue
+        if (
+            balance_labels
+            and stratify_motif_label
+            and accepted_motif_label_counts[(scm_kind, label)]
+            >= target_motif_label_counts[(scm_kind, label)]
+        ):
             attempt += 1
             continue
 
@@ -260,6 +318,7 @@ def build_intervention_compare_instances(
             )
         )
         accepted_counts[label] += 1
+        accepted_motif_label_counts[(scm_kind, label)] += 1
         attempt += 1
 
     if len(instances) < n:

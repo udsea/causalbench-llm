@@ -25,10 +25,11 @@ By default, instance generation uses rejection sampling to target a balanced gol
 uv run python -m causalbench.eval.run_eval \
   --model-name "Qwen/Qwen2.5-0.5B-Instruct" \
   --device cpu \
-  --n-instances 30 \
+  --n-instances 240 \
   --seed 0 \
   --scm-kinds all \
   --balance-labels \
+  --stratify-motif-label \
   --n-prompt-obs-samples 2000 \
   --x-band 0.25 \
   --eq-margin 0.06 \
