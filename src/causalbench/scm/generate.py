@@ -40,6 +40,23 @@ def make_confounding_scm(seed: int = 0) -> LinearGaussianSCM:
     return _build_scm(edges=[("U", "X"), ("U", "Y"), ("X", "Y")], seed=seed)
 
 
+def make_confounding_only_scm(seed: int = 0) -> LinearGaussianSCM:
+    """
+    Confounding-only motif:
+      U -> X
+      U -> Y
+    """
+    return _build_scm(edges=[("U", "X"), ("U", "Y")], seed=seed)
+
+
+def make_no_confounding_scm(seed: int = 0) -> LinearGaussianSCM:
+    """
+    No-confounding motif:
+      X -> Y
+    """
+    return _build_scm(edges=[("X", "Y")], seed=seed)
+
+
 def make_mediation_scm(seed: int = 0) -> LinearGaussianSCM:
     """
     Mediation motif:
@@ -89,6 +106,8 @@ def make_backdoor_adjustable_scm(seed: int = 0) -> LinearGaussianSCM:
 
 SCM_BUILDERS: dict[str, Callable[[int], LinearGaussianSCM]] = {
     "confounding": make_confounding_scm,
+    "confounding_only": make_confounding_only_scm,
+    "no_confounding": make_no_confounding_scm,
     "mediation": make_mediation_scm,
     "collider": make_collider_scm,
     "instrumental_variable": make_instrumental_variable_scm,
@@ -98,6 +117,8 @@ SCM_BUILDERS: dict[str, Callable[[int], LinearGaussianSCM]] = {
 
 SCM_DESCRIPTIONS: dict[str, str] = {
     "confounding": "U -> X, U -> Y, X -> Y. U is unobserved.",
+    "confounding_only": "U -> X, U -> Y. U is unobserved.",
+    "no_confounding": "X -> Y with no shared confounder.",
     "mediation": "X -> M -> Y.",
     "collider": "X -> Y, X -> Z, Y -> Z (collider at Z).",
     "instrumental_variable": "Z -> X -> Y, U -> X, U -> Y, with Z independent of U.",

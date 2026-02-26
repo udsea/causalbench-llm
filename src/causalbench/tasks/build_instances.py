@@ -61,6 +61,9 @@ def _build_prompt(
 ) -> str:
     x = obs_data["X"]
     y = obs_data["Y"]
+    baseline_prob = float(np.mean(y > 0))
+    mean_x = float(np.mean(x))
+    mean_y = float(np.mean(y))
     in_band = np.abs(x - x_value) <= x_band
     n_in_band = int(in_band.sum())
 
@@ -68,7 +71,11 @@ def _build_prompt(
     corr_xy = _safe_corr(x, y)
 
     observed_nodes = sorted(node for node in obs_data if node != "U")
-    extra_lines = [f"- mean({node}): {_fmt_stat(float(np.mean(obs_data[node])))}" for node in observed_nodes]
+    extra_lines = [
+        f"- mean({node}): {_fmt_stat(float(np.mean(obs_data[node])))}"
+        for node in observed_nodes
+        if node not in {"X", "Y"}
+    ]
     extra_stats = "\n".join(extra_lines)
 
     return (
@@ -77,8 +84,12 @@ def _build_prompt(
         "We care about P(Y > 0).\n\n"
         "From N observational samples, you are given these empirical summaries:\n"
         f"- N = {n_obs}\n"
+        f"- Conditioning band: |X-{x_value:.1f}| <= {x_band:.1f}\n"
         f"- Estimated A = P(Y > 0 | X ~ {x_value:.1f}) using band |X-{x_value:.1f}|<={x_band:.1f}: {_fmt_stat(obs_prob_est)}\n"
         f"- Count in band: {n_in_band}\n"
+        f"- Baseline P(Y > 0): {_fmt_stat(baseline_prob)}\n"
+        f"- mean(X): {_fmt_stat(mean_x)}\n"
+        f"- mean(Y): {_fmt_stat(mean_y)}\n"
         f"- corr(X, Y): {_fmt_stat(corr_xy)}\n"
         f"{extra_stats}\n\n"
         "Now decide which is larger:\n"
@@ -94,6 +105,7 @@ def build_intervention_compare_instances(
     scm_kinds: Sequence[str] | None = None,
     balance_labels: bool = True,
     max_attempt_multiplier: int = 200,
+    n_prompt_obs_samples: int = 800,
     n_obs_samples: int = 8000,
     n_mc_samples: int = 8000,
     tol: float = 0.02,
@@ -122,7 +134,7 @@ def build_intervention_compare_instances(
         attempt_seed = seed + attempt
 
         scm = make_scm(kind=scm_kind, seed=attempt_seed)
-        obs_data = sample_observational(
+        gold_obs_data = sample_observational(
             scm=scm,
             n=n_obs_samples,
             seed=seed + 100_000 + attempt,
@@ -135,7 +147,7 @@ def build_intervention_compare_instances(
             n_mc=n_mc_samples,
             seed=seed + 200_000 + attempt,
             tol=tol,
-            obs_data=obs_data,
+            obs_data=gold_obs_data,
             x_band=x_band,
         )
         label = str(out["label"])
@@ -143,15 +155,22 @@ def build_intervention_compare_instances(
         do_prob = out["do_prob"]
         if not isinstance(obs_prob, float) or not isinstance(do_prob, float):
             raise TypeError("compare_obs_vs_do returned non-float probabilities")
+        gap = abs(obs_prob - do_prob)
 
         if balance_labels and accepted_counts[label] >= target_counts[label]:
             attempt += 1
             continue
 
+        prompt_obs_data = sample_observational(
+            scm=scm,
+            n=n_prompt_obs_samples,
+            seed=seed + 300_000 + attempt,
+            interventions=None,
+        )
         prompt = _build_prompt(
             scm_kind=scm_kind,
-            obs_data=obs_data,
-            n_obs=n_obs_samples,
+            obs_data=prompt_obs_data,
+            n_obs=n_prompt_obs_samples,
             x_value=do_value,
             x_band=x_band,
         )
@@ -166,6 +185,10 @@ def build_intervention_compare_instances(
                     "label": label,
                     "obs_prob": obs_prob,
                     "do_prob": do_prob,
+                    "gap": gap,
+                    "tol": tol,
+                    "band": x_band,
+                    "n_prompt_obs": n_prompt_obs_samples,
                 },
             )
         )
