@@ -1,0 +1,54 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# --- Virtualenvs / uv ---
+.venv/
+venv/
+env/
+cbench/
+.python-version
+# uv may create lockfiles; keep the lock, ignore caches
+.uv_cache/
+
+# --- Jupyter / Colab ---
+.ipynb_checkpoints/
+*.ipynb~
+
+
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Data / Results ---
+data/
+datasets/
+results/runs/**/results.jsonl
+results/runs/**/raw_outputs*
+results/runs/**/tmp*
+*.log
+
+# Keep result tables + reports tracked (comment out if you want everything ignored)
+# !results/runs/**/results_table.md
+# !results/runs/**/README.md
+
+# --- HuggingFace / Model caches ---
+.huggingface/
+.cache/
+.cache/huggingface/
+.cache/torch/
+.cache/transformers/
