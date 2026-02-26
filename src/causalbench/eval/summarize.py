@@ -33,8 +33,8 @@ def _f1(tp: int, fp: int, fn: int) -> float:
     return (2 * tp) / denom
 
 
-def _gap_bucket(gap: float, tol: float) -> str:
-    if gap < tol:
+def _gap_bucket(gap: float, eq_margin: float) -> str:
+    if gap < eq_margin:
         return "borderline (gap < tol)"
     if gap < 0.08:
         return "medium (tol <= gap < 0.08)"
@@ -95,8 +95,8 @@ def main(
             gap = float(gold["gap"])
         else:
             gap = abs(float(gold["obs_prob"]) - float(gold["do_prob"]))
-        tol = float(gold.get("tol", gap_tol))
-        bucket = _gap_bucket(gap, tol)
+        eq_margin = float(gold.get("eq_margin", gold.get("tol", gap_tol)))
+        bucket = _gap_bucket(gap, eq_margin)
         by_gap_bucket[bucket]["n"] += 1
         by_gap_bucket[bucket]["correct"] += score
 
