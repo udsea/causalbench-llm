@@ -11,11 +11,11 @@ from causalbench.tasks.scoring import score_label_strict
 
 app = typer.Typer()
 
-_A_HAT_RE = re.compile(r"Estimated A = .*?:\s*([0-9.]+)")
+_A_HAT_RE = re.compile(r"(?:Estimated A = .*?:|A1_hat = P\(Y > 0 \| X ~ [^)]+\):)\s*([0-9.]+)")
 _BASELINE_RE = re.compile(r"Baseline P\(Y > 0\):\s*([0-9.]+)")
-_DELTA_RE = re.compile(r"delta\(A_hat - baseline\):\s*([-0-9.]+)")
-_N_IN_BAND_RE = re.compile(r"Count in band:\s*([0-9]+)")
-_CI_RE = re.compile(r"Approx 95% CI for A_hat:\s*\[([0-9.]+),\s*([0-9.]+)\]")
+_DELTA_RE = re.compile(r"delta\((?:A_hat|A1_hat) - baseline\):\s*([-0-9.]+)")
+_N_IN_BAND_RE = re.compile(r"(?:Count in band:\s*([0-9]+)|A1 95% CI: .*count=([0-9]+))")
+_CI_RE = re.compile(r"(?:Approx 95% CI for A_hat:|A1 95% CI:)\s*\[([0-9.]+),\s*([0-9.]+)\]")
 
 
 def _extract_float(value: Any) -> float | None:
@@ -48,7 +48,9 @@ def _features_from_row(row: dict[str, Any]) -> tuple[float | None, float | None,
             if n_in_band is None:
                 n_match = _N_IN_BAND_RE.search(prompt)
                 if n_match:
-                    n_in_band = int(n_match.group(1))
+                    value = n_match.group(1) or n_match.group(2)
+                    if value is not None:
+                        n_in_band = int(value)
             if ci_width is None:
                 ci_match = _CI_RE.search(prompt)
                 if ci_match:

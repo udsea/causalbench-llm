@@ -31,6 +31,7 @@ uv run python -m causalbench.eval.run_eval \
   --balance-labels \
   --stratify-motif-label \
   --n-prompt-obs-samples 2000 \
+  --x-reference-value 0.0 \
   --x-band 0.25 \
   --eq-margin 0.06 \
   --dir-margin 0.06 \

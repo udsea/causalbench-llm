@@ -71,11 +71,32 @@ def _fmt_stat(value: float) -> str:
     return "nan" if np.isnan(value) else f"{value:.4f}"
 
 
+def _band_prob_and_ci(
+    x: np.ndarray,
+    y: np.ndarray,
+    x_value: float,
+    band: float,
+) -> tuple[float, int, float, float, float]:
+    mask = np.abs(x - x_value) <= band
+    n_in_band = int(mask.sum())
+    if n_in_band == 0:
+        nan = float("nan")
+        return nan, 0, nan, nan, nan
+
+    a_hat = float(np.mean(y[mask] > 0))
+    se = float(np.sqrt(max(0.0, a_hat * (1.0 - a_hat)) / n_in_band))
+    ci_low = float(max(0.0, a_hat - 1.96 * se))
+    ci_high = float(min(1.0, a_hat + 1.96 * se))
+    ci_width = float(ci_high - ci_low)
+    return a_hat, n_in_band, ci_low, ci_high, ci_width
+
+
 def _build_prompt(
     scm_kind: str,
     obs_data: dict[str, np.ndarray],
     n_obs: int,
     x_value: float,
+    x_reference_value: float,
     x_band: float,
     label_order: tuple[str, str, str],
 ) -> tuple[str, dict[str, float | int]]:
@@ -90,21 +111,24 @@ def _build_prompt(
     mean_y = float(np.mean(y))
     std_x = float(np.std(x))
     std_y = float(np.std(y))
-    in_band = np.abs(x - x_value) <= x_band
-    n_in_band = int(in_band.sum())
-
     obs_prob_est = estimate_obs_prob(obs_data, x_value=x_value, band=x_band)
-    delta_a_baseline = (
-        float(obs_prob_est - baseline_prob) if not np.isnan(obs_prob_est) else float("nan")
+    a1_hat, n1, a1_ci_low, a1_ci_high, a1_ci_width = _band_prob_and_ci(
+        x=x,
+        y=y,
+        x_value=x_value,
+        band=x_band,
     )
-    if n_in_band > 0 and not np.isnan(obs_prob_est):
-        se = float(np.sqrt(obs_prob_est * (1.0 - obs_prob_est) / n_in_band))
-        ci_low = float(max(0.0, obs_prob_est - 1.96 * se))
-        ci_high = float(min(1.0, obs_prob_est + 1.96 * se))
-    else:
-        ci_low = float("nan")
-        ci_high = float("nan")
-    ci_width = float(ci_high - ci_low) if not np.isnan(ci_low) and not np.isnan(ci_high) else float("nan")
+    a0_hat, n0, a0_ci_low, a0_ci_high, a0_ci_width = _band_prob_and_ci(
+        x=x,
+        y=y,
+        x_value=x_reference_value,
+        band=x_band,
+    )
+    delta_a_baseline = float(a1_hat - baseline_prob) if not np.isnan(a1_hat) else float("nan")
+    delta_a1_a0 = float(a1_hat - a0_hat) if not np.isnan(a1_hat) and not np.isnan(a0_hat) else float("nan")
+    a1_overlaps_baseline = (
+        not np.isnan(a1_ci_low) and not np.isnan(a1_ci_high) and (a1_ci_low <= baseline_prob <= a1_ci_high)
+    )
     corr_xy = _safe_corr(x, y)
 
     edges = ", ".join(f"{src}->{dst}" for src, dst in SCM_EDGES[scm_kind])
@@ -130,10 +154,12 @@ def _build_prompt(
         "From N observational samples, you are given these empirical summaries:\n"
         f"- N = {n_obs}\n"
         f"- Conditioning band: |X-{x_value:.1f}| <= {x_band:.1f}\n"
-        f"- Estimated A = P(Y > 0 | X ~ {x_value:.1f}) using band |X-{x_value:.1f}|<={x_band:.1f}: {_fmt_stat(obs_prob_est)}\n"
-        f"- Approx 95% CI for A_hat: [{_fmt_stat(ci_low)}, {_fmt_stat(ci_high)}]\n"
-        f"- delta(A_hat - baseline): {_fmt_stat(delta_a_baseline)}\n"
-        f"- Count in band: {n_in_band}\n"
+        f"- A1_hat = P(Y > 0 | X ~ {x_value:.1f}): {_fmt_stat(a1_hat)}\n"
+        f"- A1 95% CI: [{_fmt_stat(a1_ci_low)}, {_fmt_stat(a1_ci_high)}], count={n1}\n"
+        f"- A0_hat = P(Y > 0 | X ~ {x_reference_value:.1f}): {_fmt_stat(a0_hat)}\n"
+        f"- A0 95% CI: [{_fmt_stat(a0_ci_low)}, {_fmt_stat(a0_ci_high)}], count={n0}\n"
+        f"- delta(A1_hat - baseline): {_fmt_stat(delta_a_baseline)}\n"
+        f"- delta(A1_hat - A0_hat): {_fmt_stat(delta_a1_a0)}\n"
         f"- Baseline P(Y > 0): {_fmt_stat(baseline_prob)}\n"
         f"- mean(X): {_fmt_stat(mean_x)}\n"
         f"- mean(Y): {_fmt_stat(mean_y)}\n"
@@ -149,20 +175,33 @@ def _build_prompt(
         "- if B > A, return do_gt_obs\n"
         "- if A > B, return obs_gt_do\n"
         "- if A and B are close, return approx_equal\n"
-        "Practical rubric for this benchmark:\n"
-        "- when delta(A_hat - baseline) <= -0.08 with a tight CI, B is often larger (lean do_gt_obs)\n"
-        "- when delta(A_hat - baseline) >= 0.08 with a tight CI, A is often larger (lean obs_gt_do)\n"
-        "- when delta is near 0 or CI is wide, lean approx_equal\n"
-        "Heuristic: if A_hat is very close to baseline P(Y > 0) and evidence is weak, prefer approx_equal.\n"
+        "Decision gates (follow in order):\n"
+        "- if |delta(A1_hat - baseline)| < 0.03 and A1 CI overlaps baseline, return approx_equal\n"
+        "- if delta(A1_hat - baseline) <= -0.08 and A1 CI width <= 0.16 and count>=100, return do_gt_obs\n"
+        "- if delta(A1_hat - baseline) >= 0.08 and A1 CI width <= 0.16 and count>=100, return obs_gt_do\n"
+        "- if delta(A1_hat - A0_hat) <= -0.05, lean do_gt_obs\n"
+        "- if delta(A1_hat - A0_hat) >= 0.05, lean obs_gt_do\n"
+        "- otherwise return approx_equal\n"
         f"Return ONLY JSON: {allowed_json}.\n"
     )
     prompt_evidence: dict[str, float | int] = {
         "prompt_a_hat": float(obs_prob_est),
-        "prompt_a_hat_ci_low": ci_low,
-        "prompt_a_hat_ci_high": ci_high,
-        "prompt_ci_width": ci_width,
+        "prompt_a_hat_ci_low": a1_ci_low,
+        "prompt_a_hat_ci_high": a1_ci_high,
+        "prompt_ci_width": a1_ci_width,
         "prompt_delta_a_baseline": float(delta_a_baseline),
-        "prompt_n_in_band": n_in_band,
+        "prompt_delta_a1_a0": float(delta_a1_a0),
+        "prompt_n_in_band": n1,
+        "prompt_n_in_band_ref": n0,
+        "prompt_a1_hat": a1_hat,
+        "prompt_a1_ci_low": a1_ci_low,
+        "prompt_a1_ci_high": a1_ci_high,
+        "prompt_a1_ci_width": a1_ci_width,
+        "prompt_a0_hat": a0_hat,
+        "prompt_a0_ci_low": a0_ci_low,
+        "prompt_a0_ci_high": a0_ci_high,
+        "prompt_a0_ci_width": a0_ci_width,
+        "prompt_a1_overlaps_baseline": int(a1_overlaps_baseline),
         "prompt_baseline_prob": baseline_prob,
         "prompt_mean_x": mean_x,
         "prompt_mean_y": mean_y,
@@ -206,6 +245,7 @@ def build_intervention_compare_instances(
     discard_ambiguous: bool = True,
     stratify_motif_label: bool = False,
     do_value: float = 1.0,
+    x_reference_value: float = 0.0,
     x_band: float = 0.25,
 ) -> list[Instance]:
     if n <= 0:
@@ -311,6 +351,7 @@ def build_intervention_compare_instances(
             obs_data=prompt_obs_data,
             n_obs=n_prompt_obs_samples,
             x_value=do_value,
+            x_reference_value=x_reference_value,
             x_band=x_band,
             label_order=label_order,
         )
@@ -330,6 +371,7 @@ def build_intervention_compare_instances(
                     "eq_margin": eq_margin,
                     "dir_margin": dir_margin,
                     "band": x_band,
+                    "x_reference_value": x_reference_value,
                     "n_prompt_obs": n_prompt_obs_samples,
                     **prompt_evidence,
                 },
