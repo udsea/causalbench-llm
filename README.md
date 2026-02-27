@@ -39,6 +39,31 @@ uv run python -m causalbench.eval.run_eval \
   --out-dir results/runs/dev
 ```
 
+Run with OpenRouter API models (same eval pipeline):
+
+```bash
+export OPENROUTER_API_KEY="your_api_key"
+# optional metadata headers for OpenRouter leaderboards/logging
+export OPENROUTER_SITE_URL="https://github.com/udsea/causalbench-llm"
+export OPENROUTER_APP_NAME="causalbench-llm"
+
+uv run python -m causalbench.eval.run_eval \
+  --backend openrouter \
+  --model-name "openai/gpt-4o-mini" \
+  --n-instances 120 \
+  --seed 0 \
+  --scm-kinds all \
+  --balance-labels \
+  --stratify-motif-label \
+  --n-prompt-obs-samples 2000 \
+  --x-reference-value 0.0 \
+  --x-band 0.25 \
+  --eq-margin 0.06 \
+  --dir-margin 0.06 \
+  --discard-ambiguous \
+  --out-dir results/runs/openrouter_gpt4omini_v1
+```
+
 Then build a markdown summary table:
 
 ```bash
