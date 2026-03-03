@@ -1,118 +1,48 @@
 # causalbench-llm
 
-`causalbench-llm` is a synthetic structural causal model (SCM) benchmark for testing whether LLMs can distinguish observational associations from interventional effects under common causal traps. It generates linear-Gaussian SCM instances, asks models to predict the relationship between `P(Y>0 | X~1)` and `P(Y>0 | do(X=1))`, and scores strict JSON outputs.
+## What It Is / Why It Matters
+`causalbench-llm` is a synthetic benchmark for testing whether language models can reason causally, not just correlate.
+It generates linear-Gaussian SCM instances with known structure and known ground-truth intervention effects.
+Each prompt asks models to compare `P(Y>0 | X~1)` against `P(Y>0 | do(X=1))` under causal motifs that induce common reasoning traps.
+Strict JSON output parsing plus deterministic scoring makes model behavior easy to compare and reproduce.
+This matters because many real-world decisions depend on intervention-aware reasoning, not observational pattern matching.
 
-## Tasks Implemented
-
-- `intervention_compare_confounding`: `U -> X, U -> Y, X -> Y`
-- `intervention_compare_confounding_only`: `U -> X, U -> Y`
-- `intervention_compare_no_confounding`: `X -> Y`
-- `intervention_compare_mediation`: `X -> M -> Y`
-- `intervention_compare_collider`: `X -> Y, X -> Z, Y -> Z` (collider at `Z`)
-- `intervention_compare_instrumental_variable`: `Z -> X -> Y, U -> X, U -> Y`
-- `intervention_compare_anti_causal`: `Y -> X, U -> X, U -> Y`
-- `intervention_compare_backdoor_adjustable`: `W -> X, W -> Y, X -> Y` with observed `W`
-
-By default, instance generation uses rejection sampling to target a balanced gold-label mix:
-
-- ~1/3 `obs_gt_do`
-- ~1/3 `do_gt_obs`
-- ~1/3 `approx_equal`
-
-## One-Command Run
+## Install + Run (3 commands)
 
 ```bash
-uv run python -m causalbench.eval.run_eval \
-  --model-name "Qwen/Qwen2.5-0.5B-Instruct" \
-  --device cpu \
-  --n-instances 240 \
-  --seed 0 \
-  --scm-kinds all \
-  --balance-labels \
-  --stratify-motif-label \
-  --n-prompt-obs-samples 2000 \
-  --x-reference-value 0.0 \
-  --x-band 0.25 \
-  --eq-margin 0.06 \
-  --dir-margin 0.06 \
-  --discard-ambiguous \
-  --out-dir results/runs/dev
+uv sync
+uv run python -m causalbench.eval.run_eval --backend hf --model-name "Qwen/Qwen2.5-0.5B-Instruct" --device cpu --n-instances 120 --seed 0 --scm-kinds all --balance-labels --stratify-motif-label --out-dir results/runs/dev
+uv run python -m causalbench.eval.summarize results/runs/dev/results.jsonl --out-table results/runs/dev/results_table.md
 ```
 
-Run with OpenRouter API models (same eval pipeline):
+## What's Inside
 
-```bash
-export OPENROUTER_API_KEY="your_api_key"
-# optional metadata headers for OpenRouter leaderboards/logging
-export OPENROUTER_SITE_URL="https://github.com/udsea/causalbench-llm"
-export OPENROUTER_APP_NAME="causalbench-llm"
+### SCM motifs
+- confounding (`U -> X`, `U -> Y`, `X -> Y`)
+- confounding-only (`U -> X`, `U -> Y`)
+- no-confounding direct effect (`X -> Y`)
+- mediation (`X -> M -> Y`)
+- collider (`X -> Y`, `X -> Z`, `Y -> Z`)
+- instrumental variable (`Z -> X -> Y`, `U -> X`, `U -> Y`)
+- anti-causal (`Y -> X`, `U -> X`, `U -> Y`)
+- backdoor-adjustable (`W -> X`, `W -> Y`, `X -> Y`)
 
-uv run python -m causalbench.eval.run_eval \
-  --backend openrouter \
-  --model-name "openai/gpt-4o-mini" \
-  --n-instances 120 \
-  --seed 0 \
-  --scm-kinds all \
-  --balance-labels \
-  --stratify-motif-label \
-  --n-prompt-obs-samples 2000 \
-  --x-reference-value 0.0 \
-  --x-band 0.25 \
-  --eq-margin 0.06 \
-  --dir-margin 0.06 \
-  --discard-ambiguous \
-  --out-dir results/runs/openrouter_gpt4omini_v1
-```
+### Metrics
+- parse rate (strict JSON validity)
+- overall accuracy and macro F1
+- per-label recall for `obs_gt_do`, `do_gt_obs`, and `approx_equal`
+- prediction mix and collapse detection
+- difficulty and reliability buckets in summary reports
 
-Then build a markdown summary table:
+### Baselines
+- Hugging Face local-model backend
+- OpenRouter API-model backend
+- non-LLM heuristic baseline: `python -m causalbench.eval.heuristic_baseline`
 
-```bash
-uv run python -m causalbench.eval.summarize \
-  results/runs/dev/results.jsonl \
-  --out-table results/runs/dev/results_table.md
-```
+## Screenshot (Results Table)
 
-Run a simple non-LLM heuristic baseline on the same dataset:
+![Results table screenshot](docs/results-table-screenshot.svg)
 
-```bash
-uv run python -m causalbench.eval.heuristic_baseline \
-  results/runs/dev/results.jsonl \
-  --out-jsonl results/runs/dev_heuristic/results.jsonl
+## Technical Note
 
-uv run python -m causalbench.eval.summarize \
-  results/runs/dev_heuristic/results.jsonl \
-  --out-table results/runs/dev_heuristic/results_table.md
-```
-
-## Example Results Table
-
-Example format (values shown are from `results/runs/qwen05b/results_table.md` in this repo):
-
-| label | n | acc |
-|---|---:|---:|
-| do_gt_obs | 10 | 1.000 |
-| obs_gt_do | 13 | 0.000 |
-| approx_equal | 7 | 0.000 |
-
-To reproduce this format, run the two commands above and open `results/runs/dev/results_table.md`.
-
-`summarize` also reports difficulty buckets by `gap = |obs_prob - do_prob|`:
-- `gap < tol` (borderline)
-- `tol <= gap <= 0.08` (medium)
-- `gap > 0.08` (easy)
-
-And reliability buckets by `n_in_band` (conditioning support size):
-- `< 100`
-- `100-199`
-- `>= 200`
-
-## Roadmap
-
-- [x] Add multiple causal motifs beyond confounding
-- [x] Balance labels by construction via rejection sampling
-- [x] Strict JSON scoring
-- [x] GitHub Actions CI (`pytest`, `ruff`, optional `mypy`)
-- [ ] Add motif-specific prompts that test adjustment/selection reasoning explicitly
-- [ ] Add calibration metrics and confidence-aware scoring
-- [ ] Add non-linear SCM families and discrete variable variants
-- [ ] Publish a fixed benchmark split + leaderboard script
+See [`docs/technical_note.md`](docs/technical_note.md) for derivations, assumptions, and benchmark framing.

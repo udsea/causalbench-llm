@@ -1,0 +1,39 @@
+{
+  "n_instances": 120,
+  "seed": 0,
+  "scm_kinds": [
+    "confounding",
+    "confounding_only",
+    "no_confounding",
+    "mediation",
+    "collider",
+    "instrumental_variable",
+    "anti_causal",
+    "backdoor_adjustable"
+  ],
+  "balance_labels": true,
+  "stratify_motif_label": true,
+  "n_prompt_obs_samples": 2000,
+  "n_obs_samples": 8000,
+  "n_mc_samples": 8000,
+  "x_reference_value": 0.0,
+  "x_band": 0.25,
+  "eq_margin": 0.06,
+  "dir_margin": 0.06,
+  "discard_ambiguous": true,
+  "label_counts": {
+    "approx_equal": 40,
+    "obs_gt_do": 40,
+    "do_gt_obs": 40
+  },
+  "motif_counts": {
+    "confounding": 15,
+    "confounding_only": 15,
+    "no_confounding": 15,
+    "mediation": 15,
+    "collider": 15,
+    "instrumental_variable": 15,
+    "anti_causal": 15,
+    "backdoor_adjustable": 15
+  }
+}

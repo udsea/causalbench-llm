@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="520" viewBox="0 0 980 520">
+  <rect width="980" height="520" fill="#f4f6f8"/>
+  <rect x="36" y="28" width="908" height="464" rx="10" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="56" y="66" font-family="Menlo, Consolas, monospace" font-size="22" fill="#24292f">
+    Results Table (sample from results/summary_model_grid.md)
+  </text>
+  <line x1="56" y1="84" x2="924" y2="84" stroke="#d8dee4"/>
+
+  <text x="56" y="118" font-family="Menlo, Consolas, monospace" font-size="16" fill="#24292f">run</text>
+  <text x="336" y="118" font-family="Menlo, Consolas, monospace" font-size="16" fill="#24292f">total</text>
+  <text x="436" y="118" font-family="Menlo, Consolas, monospace" font-size="16" fill="#24292f">parse_rate</text>
+  <text x="590" y="118" font-family="Menlo, Consolas, monospace" font-size="16" fill="#24292f">acc</text>
+  <text x="664" y="118" font-family="Menlo, Consolas, monospace" font-size="16" fill="#24292f">macro_f1</text>
+  <text x="804" y="118" font-family="Menlo, Consolas, monospace" font-size="16" fill="#24292f">collapse</text>
+
+  <line x1="56" y1="132" x2="924" y2="132" stroke="#d8dee4"/>
+
+  <text x="56" y="166" font-family="Menlo, Consolas, monospace" font-size="15" fill="#1f883d">qwen25_v5_heuristic</text>
+  <text x="336" y="166" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">60</text>
+  <text x="436" y="166" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">1.000</text>
+  <text x="590" y="166" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">0.550</text>
+  <text x="664" y="166" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">0.524</text>
+  <text x="804" y="166" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">none</text>
+
+  <line x1="56" y1="182" x2="924" y2="182" stroke="#eef2f6"/>
+
+  <text x="56" y="214" font-family="Menlo, Consolas, monospace" font-size="15" fill="#1f883d">qwen25_v7</text>
+  <text x="336" y="214" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">72</text>
+  <text x="436" y="214" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">1.000</text>
+  <text x="590" y="214" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">0.542</text>
+  <text x="664" y="214" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">0.372</text>
+  <text x="804" y="214" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">none</text>
+
+  <line x1="56" y1="230" x2="924" y2="230" stroke="#eef2f6"/>
+
+  <text x="56" y="262" font-family="Menlo, Consolas, monospace" font-size="15" fill="#0969da">qwen25</text>
+  <text x="336" y="262" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">60</text>
+  <text x="436" y="262" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">1.000</text>
+  <text x="590" y="262" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">0.333</text>
+  <text x="664" y="262" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">0.173</text>
+  <text x="804" y="262" font-family="Menlo, Consolas, monospace" font-size="15" fill="#cf222e">obs_gt_do</text>
+
+  <line x1="56" y1="278" x2="924" y2="278" stroke="#eef2f6"/>
+
+  <text x="56" y="310" font-family="Menlo, Consolas, monospace" font-size="15" fill="#0969da">qwen25_3b_v1</text>
+  <text x="336" y="310" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">120</text>
+  <text x="436" y="310" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">1.000</text>
+  <text x="590" y="310" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">0.333</text>
+  <text x="664" y="310" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">0.167</text>
+  <text x="804" y="310" font-family="Menlo, Consolas, monospace" font-size="15" fill="#cf222e">do_gt_obs</text>
+
+  <line x1="56" y1="326" x2="924" y2="326" stroke="#eef2f6"/>
+
+  <text x="56" y="358" font-family="Menlo, Consolas, monospace" font-size="15" fill="#cf222e">deepseek_r1_1p5b_v1</text>
+  <text x="336" y="358" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">117</text>
+  <text x="436" y="358" font-family="Menlo, Consolas, monospace" font-size="15" fill="#cf222e">0.000</text>
+  <text x="590" y="358" font-family="Menlo, Consolas, monospace" font-size="15" fill="#cf222e">0.000</text>
+  <text x="664" y="358" font-family="Menlo, Consolas, monospace" font-size="15" fill="#cf222e">0.000</text>
+  <text x="804" y="358" font-family="Menlo, Consolas, monospace" font-size="15" fill="#24292f">none</text>
+
+  <line x1="56" y1="374" x2="924" y2="374" stroke="#eef2f6"/>
+
+  <text x="56" y="416" font-family="Menlo, Consolas, monospace" font-size="14" fill="#57606a">
+    Columns shown: run, total, parse_rate, acc, macro_f1, collapse
+  </text>
+  <text x="56" y="440" font-family="Menlo, Consolas, monospace" font-size="14" fill="#57606a">
+    Source: results/summary_model_grid.md
+  </text>
+</svg>

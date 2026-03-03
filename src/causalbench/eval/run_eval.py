@@ -2,30 +2,20 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Any
 import typer
 from tqdm import tqdm
 
 from causalbench.models.hf_runner import HFRunner
 from causalbench.models.openrouter_runner import OpenRouterRunner
 from causalbench.tasks.build_instances import build_intervention_compare_instances, parse_scm_kinds
+from causalbench.tasks.instances import Instance
 from causalbench.tasks.scoring import extract_first_json_obj, score_label_strict
 
 app = typer.Typer()
 
 
-def _resolve_runner(
-    *,
-    backend: str,
-    model_name: str,
-    device: str,
-    temperature: float,
-    max_new_tokens: int,
-    openrouter_api_base: str,
-    openrouter_api_key_env: str,
-    openrouter_site_url: str,
-    openrouter_app_name: str,
-    request_timeout_s: float,
-):
+def _resolve_backend_and_model(backend: str, model_name: str) -> tuple[str, str]:
     selected = backend.lower().strip()
     resolved_model_name = model_name
 
@@ -36,14 +26,71 @@ def _resolve_runner(
         prefix = "openrouter/"
         if model_name.startswith(prefix):
             selected = "openrouter"
-            resolved_model_name = model_name[len(prefix) :]
+            resolved_model_name = model_name[len(prefix):]
         else:
             selected = "hf"
+
+    return selected, resolved_model_name
+
+
+def _load_instances(instances_jsonl: Path) -> list[Instance]:
+    rows: list[dict[str, Any]] = []
+    with instances_jsonl.open("r", encoding="utf-8") as f:
+        for line in f:
+            rows.append(json.loads(line))
+
+    instances: list[Instance] = []
+    for i, row in enumerate(rows):
+        instance_id = row.get("instance_id")
+        task = row.get("task")
+        scm_kind = row.get("scm_kind")
+        prompt = row.get("prompt")
+        gold = row.get("gold")
+        if not isinstance(instance_id, str):
+            raise ValueError(f"instances_jsonl row {i} missing string field 'instance_id'")
+        if not isinstance(task, str):
+            raise ValueError(f"instances_jsonl row {i} missing string field 'task'")
+        if not isinstance(scm_kind, str):
+            raise ValueError(f"instances_jsonl row {i} missing string field 'scm_kind'")
+        if not isinstance(prompt, str):
+            raise ValueError(f"instances_jsonl row {i} missing string field 'prompt'")
+        if not isinstance(gold, dict):
+            raise ValueError(f"instances_jsonl row {i} missing object field 'gold'")
+        instances.append(
+            Instance(
+                instance_id=instance_id,
+                task=task,
+                scm_kind=scm_kind,
+                prompt=prompt,
+                gold=gold,
+            )
+        )
+    return instances
+
+
+def _resolve_runner(
+    *,
+    backend: str,
+    model_name: str,
+    device: str,
+    temperature: float = 0.0,
+    max_new_tokens: int = 64,
+    openrouter_api_base: str = "https://openrouter.ai/api/v1",
+    openrouter_api_key_env: str = "OPENROUTER_API_KEY",
+    openrouter_site_url: str = "",
+    openrouter_app_name: str = "causalbench-llm",
+    request_timeout_s: float = 120.0,
+    torch_dtype: str = "auto",
+    quantization: str = "none",
+):
+    selected, resolved_model_name = _resolve_backend_and_model(backend=backend, model_name=model_name)
 
     if selected == "hf":
         return HFRunner(
             model_name=resolved_model_name,
             device_preference=device,
+            torch_dtype=torch_dtype,
+            quantization=quantization,
             temperature=temperature,
             max_new_tokens=max_new_tokens,
         )
@@ -79,6 +126,8 @@ def main(
     discard_ambiguous: bool = True,
     stratify_motif_label: bool = False,
     backend: str = "hf",
+    torch_dtype: str = "auto",
+    quantization: str = "none",
     temperature: float = 0.0,
     max_new_tokens: int = 64,
     openrouter_api_base: str = "https://openrouter.ai/api/v1",
@@ -86,28 +135,45 @@ def main(
     openrouter_site_url: str = "",
     openrouter_app_name: str = "causalbench-llm",
     request_timeout_s: float = 120.0,
+    instances_jsonl: str = "",
+    limit_instances: int = 0,
 ):
     out_path = Path(out_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
-    instances = build_intervention_compare_instances(
-        n=n_instances,
-        seed=seed,
-        scm_kinds=parse_scm_kinds(scm_kinds),
-        balance_labels=balance_labels,
-        n_prompt_obs_samples=n_prompt_obs_samples,
-        x_reference_value=x_reference_value,
-        x_band=x_band,
-        eq_margin=eq_margin,
-        dir_margin=dir_margin,
-        discard_ambiguous=discard_ambiguous,
-        stratify_motif_label=stratify_motif_label,
+    if instances_jsonl:
+        instances_path = Path(instances_jsonl)
+        instances = _load_instances(instances_path)
+        typer.echo(f"Loaded {len(instances)} instances from {instances_path}")
+    else:
+        instances = build_intervention_compare_instances(
+            n=n_instances,
+            seed=seed,
+            scm_kinds=parse_scm_kinds(scm_kinds),
+            balance_labels=balance_labels,
+            n_prompt_obs_samples=n_prompt_obs_samples,
+            x_reference_value=x_reference_value,
+            x_band=x_band,
+            eq_margin=eq_margin,
+            dir_margin=dir_margin,
+            discard_ambiguous=discard_ambiguous,
+            stratify_motif_label=stratify_motif_label,
+        )
+    if limit_instances > 0:
+        instances = instances[:limit_instances]
+        typer.echo(f"Using first {len(instances)} instances (limit_instances={limit_instances})")
+
+    selected_backend, resolved_model_name = _resolve_backend_and_model(
+        backend=backend,
+        model_name=model_name,
     )
     try:
         runner = _resolve_runner(
             backend=backend,
             model_name=model_name,
             device=device,
+            torch_dtype=torch_dtype,
+            quantization=quantization,
             temperature=temperature,
             max_new_tokens=max_new_tokens,
             openrouter_api_base=openrouter_api_base,
@@ -136,6 +202,8 @@ def main(
                 "parse_ok": ok,
                 "pred": pred,
                 "score": score,
+                "backend": selected_backend,
+                "model_name": resolved_model_name,
             }
             f.write(json.dumps(record) + "\n")
 
